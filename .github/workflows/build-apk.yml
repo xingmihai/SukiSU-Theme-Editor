@@ -1,0 +1,80 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "同时创建 Release 并附加 APK"
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release 使用的 tag"
+        type: string
+        default: "v0.1.0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag || 'v0.1.0' }}
+
+jobs:
+  build:
+    name: Build installable debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install Android platform and build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-36" > /dev/null 2>&1 || true
+          sdkmanager "build-tools;35.0.0" > /dev/null 2>&1 || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK artifact
+        run: cp app/build/outputs/apk/debug/app-debug.apk "SukiSU-Theme-Editor-${RELEASE_TAG}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SukiSU-Theme-Editor-APK
+          path: SukiSU-Theme-Editor-*.apk
+          if-no-files-found: error
+
+      - name: Create Release with APK
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: SukiSU 主题编辑器 ${{ env.RELEASE_TAG }}
+          generate_release_notes: true
+          files: SukiSU-Theme-Editor-*.apk
