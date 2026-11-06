@@ -52,15 +52,46 @@ offset 16  : AES-256-GCM(plaintext ZIP)   (末尾 16 B 为 GCM tag)
 ./gradlew :app:assembleDebug
 ```
 
-产物：`app/build/outputs/apk/debug/app-debug.apk`（debug 签名，可直接安装）。
+产物：
+
+- `app/build/outputs/apk/debug/app-debug.apk` — debug 签名，可直接安装
+- `app/build/outputs/apk/release/app-release.apk` — 正式签名（仅在签名环境变量齐全时）
 
 要求：JDK 17、Android SDK Platform 36、Build Tools 35。用 Android Studio 打开即可，
 仓库已包含标准 Gradle 8.11.1 wrapper。
 
+### 签名配置
+
+签名材料**不入库**。CI 从仓库级 Actions secrets 读取四个值：
+
+| Secret | 内容 |
+|---|---|
+| `SIGNING_KEYSTORE_BASE64` | JKS 文件的 base64（`base64 -w0` 输出，单行） |
+| `SIGNING_KEYSTORE_PASSWORD` | keystore 口令 |
+| `SIGNING_KEY_ALIAS` | 密钥别名（支持中文） |
+| `SIGNING_KEY_PASSWORD` | 别名私钥口令 |
+
+工作流把 base64 解码到 `$RUNNER_TEMP/sukisu-release.jks`，再把路径与三个口令通过环境变量
+传给 Gradle；`app/build.gradle.kts` 在四个值齐全且文件存在时才创建 `signingConfigs.release`。
+本地或 fork PR 拿不到 secrets 时，release 构建回退到 debug 签名，配置阶段不会报错。
+
+本地要出正式签名包，可自行设置同名环境变量，例如：
+
+```sh
+export SIGNING_KEYSTORE=/path/to/release.jks
+export SIGNING_KEYSTORE_PASSWORD='...'
+export SIGNING_KEY_ALIAS='星觅海'
+export SIGNING_KEY_PASSWORD='...'
+./gradlew :app:assembleRelease
+```
+
+请勿把 keystore 或口令写进仓库、`local.properties`、日志或 commit。
+
 ### GitHub Actions
 
 `.github/workflows/build-apk.yml` 在 `main` 分支 push、PR、`v*` tag 和手动触发时自动构建，
-上传 APK 到 Actions Artifacts；打 `v*` tag 时额外创建 Release 并附加 APK。
+上传 debug 与签名 release APK 到 Actions Artifacts；打 `v*` tag 时额外创建 Release 并同时
+附上两个 APK。签名版构建后会用 `apksigner verify --print-certs` 校验证书。
 
 ## 使用注意
 
