@@ -115,18 +115,31 @@ jobs:
       - name: Verify release APK signature
         if: steps.signing.outputs.available == 'true'
         run: |
-          set -e
+          set -o pipefail
           APK=app/build/outputs/apk/release/app-release.apk
-          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)
+          if [ ! -f "$APK" ]; then
+            echo "::error::未生成 release APK"; exit 1
+          fi
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner 2>/dev/null | sort | tail -n 1)
           if [ -z "$APKSIGNER" ]; then
             echo "::warning::找不到 apksigner，跳过签名校验"
             exit 0
           fi
-          "$APKSIGNER" verify --verbose "$APK"
-          echo "--- certificate ---"
-          "$APKSIGNER" verify --print-certs "$APK" | grep -E 'Signer #1 certificate (DN|SHA-256)'
+          echo "apksigner: $APKSIGNER" | tee build-verify.log
+          "$APKSIGNER" verify --verbose "$APK" 2>&1 | tee -a build-verify.log
+          echo "--- certificate ---" | tee -a build-verify.log
+          "$APKSIGNER" verify --print-certs "$APK" 2>&1 | tee -a build-verify.log
 
       - name: Upload build logs on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
+            -f body="$(tail -c 40000 build-*.log 2>/dev/null)" || true
+          echo "构建日志已作为 commit comment 上报"
+
+      - name: Upload build logs artifact
         if: failure()
         uses: actions/upload-artifact@v4
         with:
