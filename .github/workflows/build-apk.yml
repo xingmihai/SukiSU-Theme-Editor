@@ -66,7 +66,22 @@ jobs:
           "$SDKMANAGER" --list_installed | head -n 20 || true
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Publish failure log
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.email "ci@users.noreply.github.com"
+          git config user.name "ci"
+          git add -f build.log
+          git commit -m "ci: build failure log" || true
+          git push -f origin HEAD:ci-logs || true
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
+            -f body="$(tail -c 50000 build.log)" || true
 
       - name: Prepare APK artifact
         run: cp app/build/outputs/apk/debug/app-debug.apk "SukiSU-Theme-Editor-${RELEASE_TAG}.apk"
