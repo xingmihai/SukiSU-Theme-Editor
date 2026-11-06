@@ -15,7 +15,7 @@ on:
       release_tag:
         description: "Release 使用的 tag"
         type: string
-        default: "v0.2.0"
+        default: "v0.1.0"
 
 permissions:
   contents: write
@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag || 'v0.2.0' }}
+  RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag || 'v0.1.0' }}
 
 jobs:
   build:
