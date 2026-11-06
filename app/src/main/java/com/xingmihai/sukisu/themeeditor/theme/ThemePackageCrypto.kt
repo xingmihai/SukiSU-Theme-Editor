@@ -22,8 +22,8 @@ object ThemePackageCrypto {
 
     // 48-byte HASH_BYTES from the manager; the AES key is its first 32 bytes.
     private val KEY: ByteArray =
-        "41dc174e5096b4ee93311cc892b132e21961012b14cf2179" +
-            "540f203ca72ab9c1d9cda5452e58e6df5679a1464d440a0a"
+        ("41dc174e5096b4ee93311cc892b132e21961012b14cf2179" +
+            "540f203ca72ab9c1d9cda5452e58e6df5679a1464d440a0a")
             .chunked(2)
             .map { it.toInt(16).toByte() }
             .toByteArray()
