@@ -70,7 +70,9 @@ fun ImagesScreen(vm: ThemeEditorViewModel, onPick: (String) -> Unit) {
                     Text("图片条目", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "条目名固定、无扩展名，内容就是图片的原始字节（WebP / PNG / JPEG）。" +
-                            "管理器用 BitmapFactory 校验尺寸；导出时按 ZIP 条目原样写回。",
+                            "管理器用 BitmapFactory 校验尺寸；导出时按 ZIP 条目原样写回。" +
+                            "v5 新增 bottom_bar_icon_home / superuser / module / setting，" +
+                            "普通与自适应主题共用同一组图标。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp),
@@ -103,7 +105,7 @@ fun ImagesScreen(vm: ThemeEditorViewModel, onPick: (String) -> Unit) {
                     value = customName,
                     onValueChange = { customName = it },
                     label = { Text("自定义条目名") },
-                    placeholder = { Text("例如 background_light / card_sticker_6") },
+                    placeholder = { Text("例如 background_light / card_sticker_6 / bottom_bar_icon_home") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )

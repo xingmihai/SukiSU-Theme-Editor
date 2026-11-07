@@ -31,7 +31,22 @@ object ThemePackageIO {
     const val MAX_IMAGE_BYTES = 64L * 1024 * 1024
     const val MAX_TOTAL_IMAGE_BYTES = 256L * 1024 * 1024
 
+    // Mirrors ThemePackageStorage version constants (manager main, 2026-11-07).
+    const val MIN_SUPPORTED_VERSION = 1
+    const val BASE_VERSION = 2
+    const val ADAPTIVE_VERSION = 3
+    const val APPEARANCE_VERSION = 4
+    /** Immersive home layout + custom bottom bar icons. */
+    const val HOME_STATUS_VERSION = 5
+    const val CURRENT_VERSION = HOME_STATUS_VERSION
+
     private const val THEME_ENTRY = "theme.json"
+    private const val BOTTOM_BAR_ICON_PREFIX = "bottom_bar_icon_"
+
+    /** Stable keys from the manager's BottomBarIconSlot enum; must not be renamed. */
+    val BOTTOM_BAR_ICON_SLOTS = listOf("home", "superuser", "module", "setting")
+
+    fun bottomBarIconEntry(slot: String) = BOTTOM_BAR_ICON_PREFIX + slot
 
     data class ReadResult(
         val document: ThemeDocument,
@@ -104,22 +119,56 @@ object ThemePackageIO {
     private fun isSafeEntryName(name: String): Boolean =
         name.isNotBlank() && !name.startsWith("/") && !name.contains("..") && !name.contains('\\')
 
-    /** Mirrors ThemePackageStorage.validateVersionedData + the stream size guards. */
+    /**
+     * Mirrors `ThemePackageStorage.validateVersionedData` + the stream size guards.
+     * Unknown JSON fields and unknown ZIP entries are preserved by design, so v5
+     * packages round-trip even before their fields were added to the editor UI.
+     */
     fun validate(doc: ThemeDocument): List<String> {
         val problems = mutableListOf<String>()
-        val version = if (doc.json.has("version")) doc.json.optInt("version", -1) else 2
-        if (version !in 1..4) problems += "version 必须在 1..4（当前 $version）"
+        val version = if (doc.json.has("version")) doc.json.optInt("version", -1) else BASE_VERSION
+        if (version !in MIN_SUPPORTED_VERSION..CURRENT_VERSION) {
+            problems += "version 必须在 $MIN_SUPPORTED_VERSION..$CURRENT_VERSION（当前 $version）"
+        }
 
         val adaptive = doc.json.optBoolean("adaptive", false)
-        if (adaptive && version < 3) problems += "adaptive=true 需要格式 v3 及以上"
+        if (adaptive && version < ADAPTIVE_VERSION) problems += "adaptive=true 需要格式 v3 及以上"
         if (adaptive) {
             if (doc.json.optJSONObject("light") == null) problems += "自适应主题缺少 light 变体"
             if (doc.json.optJSONObject("dark") == null) problems += "自适应主题缺少 dark 变体"
         }
 
         val appearance = doc.json.opt("appearance")
-        if (appearance != null && appearance !== JSONObject.NULL && version < 4) {
+        if (appearance != null && appearance !== JSONObject.NULL && version < APPEARANCE_VERSION) {
             problems += "appearance 叠加层需要格式 v4"
+        }
+
+        // v5: immersive home requires format 5, on the top level or either variant.
+        val usesImmersiveHome = doc.json.optString("homeLayout") == "immersive" ||
+            doc.json.optJSONObject("light")?.optString("homeLayout") == "immersive" ||
+            doc.json.optJSONObject("dark")?.optString("homeLayout") == "immersive"
+        if (usesImmersiveHome && version < HOME_STATUS_VERSION) {
+            problems += "沉浸首页（immersive）需要格式 v5"
+        }
+
+        // v5: custom bottom bar icons. The manager ignores unknown slots, so only
+        // the four stable keys are enforced here.
+        val bottomBarIcons = doc.json.optJSONArray("bottomBarIcons")
+        if (bottomBarIcons != null) {
+            for (i in 0 until bottomBarIcons.length()) {
+                val slot = bottomBarIcons.optString(i)
+                if (slot in BOTTOM_BAR_ICON_SLOTS && !doc.images.containsKey(bottomBarIconEntry(slot))) {
+                    problems += "底栏图标 $slot 缺少图片条目 bottom_bar_icon_$slot"
+                }
+            }
+        }
+        val hasBottomBarIconEntries = doc.images.keys.any { name ->
+            name.startsWith(BOTTOM_BAR_ICON_PREFIX) &&
+                name.removePrefix(BOTTOM_BAR_ICON_PREFIX) in BOTTOM_BAR_ICON_SLOTS
+        }
+        // The manager bumps to v5 whenever bottom bar icon files are present.
+        if (hasBottomBarIconEntries && version < HOME_STATUS_VERSION) {
+            problems += "自定义底栏图标需要格式 v5"
         }
 
         val jsonSize = doc.json.toString().toByteArray(Charsets.UTF_8).size

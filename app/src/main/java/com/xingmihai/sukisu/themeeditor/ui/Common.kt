@@ -165,6 +165,12 @@ fun StatusCard(vm: ThemeEditorViewModel) {
                         )
                     }
                 }
+                if (vm.errors.any { it.contains("v5") }) {
+                    FilledTonalButton(
+                        onClick = { vm.upgradeToV5() },
+                        modifier = Modifier.padding(top = 12.dp),
+                    ) { Text("一键升级到 v5") }
+                }
             }
         }
     }
@@ -385,12 +391,12 @@ fun EmptyState(onNew: () -> Unit, onImport: () -> Unit) {
         )
         Text("还没有打开主题包", style = MaterialTheme.typography.titleLarge)
         Text(
-            "新建一个空主题，或从文件管理器导入 .sukisu",
+            "新建一个 v5 空主题（旧版管理器可在格式版本处切回 v4 或更低），或从文件管理器导入 .sukisu",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FilledTonalButton(onClick = onNew, modifier = Modifier.padding(top = 8.dp)) {
-            Text("新建 v4 空主题")
+            Text("新建 v5 空主题")
         }
         OutlinedButton(onClick = onImport) {
             Icon(Icons.Default.FolderOpen, contentDescription = null)

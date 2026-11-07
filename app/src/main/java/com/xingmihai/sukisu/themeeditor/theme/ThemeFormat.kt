@@ -47,9 +47,9 @@ private val COLOR_STYLES = listOf(
 val THEME_GROUPS: List<GroupSpec> = listOf(
     GroupSpec("格式与颜色", "版本、主题模式、取色与 UI 风格", listOf(
         FieldSpec("version", "格式版本", Kind.CHOICE,
-            "v1–v4；v3 起支持自适应，v4 起支持 appearance 叠加层",
+            "v1–v5：v3 自适应，v4 appearance 叠加层，v5 沉浸首页 / 自定义底栏图标",
             ch(Choice("未设置", null), Choice("v1", 1), Choice("v2", 2),
-                Choice("v3", 3), Choice("v4", 4))),
+                Choice("v3", 3), Choice("v4", 4), Choice("v5", 5))),
         FieldSpec("themeMode", "主题模式", Kind.CHOICE,
             choices = ch(Choice("未设置", null), Choice("跟随系统", 0),
                 Choice("浅色", 1), Choice("深色", 2))),
@@ -85,10 +85,30 @@ val THEME_GROUPS: List<GroupSpec> = listOf(
         FieldSpec("enablePredictiveBack", "预测式返回", Kind.BOOL),
         FieldSpec("enableSwipeDismiss", "滑动关闭", Kind.BOOL),
         FieldSpec("enableBlur", "全局模糊", Kind.BOOL),
+        FieldSpec("enableProgressiveBlur", "渐进式底栏模糊（v5）", Kind.BOOL),
         FieldSpec("pagerInterceptionMode", "翻页拦截模式", Kind.CHOICE,
             choices = ch(Choice("未设置", null), Choice("0", 0), Choice("1", 1), Choice("2", 2))),
         FieldSpec("pageScale", "页面缩放", Kind.FLOAT, min = 0.5f, max = 1.5f),
         FieldSpec("moduleDescriptionMaxLines", "模块描述最大行数", Kind.INT),
+    )),
+    GroupSpec("沉浸首页（v5）", "immersive 布局、状态药丸与图片横幅", listOf(
+        FieldSpec("homeLayout", "首页布局", Kind.CHOICE,
+            "选 immersive 会把格式版本要求提升到 v5",
+            ch(Choice("未设置", null), Choice("classic", "classic"),
+                Choice("immersive", "immersive"))),
+        FieldSpec("homeStatusAlignment", "状态区水平位置", Kind.CHOICE,
+            choices = ch(Choice("未设置", null), Choice("start", "start"),
+                Choice("end", "end"))),
+        FieldSpec("homeStatusScale", "状态区 / 横幅高度缩放", Kind.FLOAT,
+            "0.5–3，默认 1", min = 0.5f, max = 3f),
+        FieldSpec("homePillScale", "状态药丸缩放", Kind.FLOAT,
+            "0.5–1.5，与横幅高度独立", min = 0.5f, max = 1.5f),
+        FieldSpec("homeStatusWidthFraction", "图片横幅宽度比例", Kind.FLOAT,
+            "0.45–1，默认 1", min = 0.45f, max = 1f),
+        FieldSpec("homeCardImageStyle", "卡片图片样式", Kind.CHOICE,
+            "旧值 window 会被管理器回退为 banner",
+            ch(Choice("未设置", null), Choice("banner", "banner"), Choice("off", "off"))),
+        FieldSpec("showHomeCardImageWithoutBackground", "无自定义背景时仍显示卡片图", Kind.BOOL),
     )),
     GroupSpec("模块与文本", "模块排序、自定义标题与文案", listOf(
         FieldSpec("moduleSortEnabledFirst", "已启用优先", Kind.BOOL),
@@ -105,14 +125,15 @@ val THEME_GROUPS: List<GroupSpec> = listOf(
 
 val JSON_BLOCKS: List<JsonBlock> = listOf(
     JsonBlock("appearance", "Appearance 叠加层", "静态颜色 / 图像效果；需要格式 v4"),
-    JsonBlock("light", "Light 变体", "自适应主题浅色全套 ThemeVariantData（v3+）"),
-    JsonBlock("dark", "Dark 变体", "自适应主题深色全套 ThemeVariantData（v3+）"),
+    JsonBlock("light", "Light 变体", "自适应主题浅色全套 ThemeVariantData（v3+，也承载 v5 首页字段）"),
+    JsonBlock("dark", "Dark 变体", "自适应主题深色全套 ThemeVariantData（v3+，也承载 v5 首页字段）"),
+    JsonBlock("bottomBarIcons", "底栏图标槽位", "JSON 数组，如 [\"home\",\"module\"]；需要格式 v5", isArray = true),
     JsonBlock("customTexts", "自定义文本", "Map<String, String>，JSON 对象"),
     JsonBlock("homeCardStickerTransforms", "贴纸变换", "JSON 数组", isArray = true),
 )
 
 val IMAGE_SLOTS: List<ImageSlot> = buildList {
-    val plain = "普通主题（v1 / v2 / v4）"
+    val plain = "普通主题（v1 / v2 / v4 / v5）"
     add(ImageSlot("background", "背景图", plain))
     add(ImageSlot("card_background", "卡片背景", plain))
     for (i in 0..5) add(ImageSlot("card_sticker_$i", "贴纸 $i", plain))
@@ -124,5 +145,11 @@ val IMAGE_SLOTS: List<ImageSlot> = buildList {
         for (i in 0..2) {
             add(ImageSlot("card_sticker_${suffix}_$i", "贴纸 $i（$label）", group))
         }
+    }
+
+    // v5: global for plain and adaptive packages; the four slots are stable keys.
+    val bottomBar = "底栏图标（v5，普通/自适应共用）"
+    ThemePackageIO.BOTTOM_BAR_ICON_SLOTS.forEach { slot ->
+        add(ImageSlot(ThemePackageIO.bottomBarIconEntry(slot), "底栏图标 · $slot", bottomBar))
     }
 }

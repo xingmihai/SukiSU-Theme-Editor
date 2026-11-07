@@ -41,7 +41,7 @@ class ThemeEditorViewModel : ViewModel() {
 
     fun newTheme() {
         document = ThemeDocument(JSONObject().apply {
-            put("version", 4)
+            put("version", ThemePackageIO.CURRENT_VERSION)
             put("adaptive", false)
             put("themeMode", 0)
             put("uiMode", "MATERIAL")
@@ -51,7 +51,13 @@ class ThemeEditorViewModel : ViewModel() {
         errors = ThemePackageIO.validate(document!!)
         sourceName = "新建主题（未保存）"
         epoch++
-        notify("已新建 v4 空主题")
+        notify("已新建 v5 空主题（旧版管理器请在格式版本处切回 v4 或更低）")
+    }
+
+    /** One-tap fix for v5 feature / version mismatches reported by [ThemePackageIO.validate]. */
+    fun upgradeToV5() {
+        update("version", ThemePackageIO.CURRENT_VERSION)
+        notify("格式版本已设为 v${ThemePackageIO.CURRENT_VERSION}")
     }
 
     fun load(context: Context, uri: Uri) = viewModelScope.launch {
@@ -149,7 +155,8 @@ class ThemeEditorViewModel : ViewModel() {
                 val doc = document
                 if (doc != null) {
                     val map = LinkedHashMap(doc.images).apply { put(slot, bytes) }
-                    val updated = doc.copy(images = map)
+                    val json = syncBottomBarIcons(doc.json, slot, add = true)
+                    val updated = doc.copy(json = json, images = map)
                     document = updated
                     errors = ThemePackageIO.validate(updated)
                     notify("已替换 $slot")
@@ -161,10 +168,36 @@ class ThemeEditorViewModel : ViewModel() {
     fun removeImage(slot: String) {
         val doc = document ?: return
         val map = LinkedHashMap(doc.images).apply { remove(slot) }
-        val updated = doc.copy(images = map)
+        val json = syncBottomBarIcons(doc.json, slot, add = false)
+        val updated = doc.copy(json = json, images = map)
         document = updated
         errors = ThemePackageIO.validate(updated)
         notify("已移除 $slot")
+    }
+
+    /**
+     * v5: keep `bottomBarIcons` in sync with the `bottom_bar_icon_<slot>` image entries.
+     * Unknown entries in the array are preserved; only the four stable keys are touched.
+     */
+    private fun syncBottomBarIcons(source: JSONObject, slot: String, add: Boolean): JSONObject {
+        val prefix = "bottom_bar_icon_"
+        if (!slot.startsWith(prefix)) return source
+        val key = slot.removePrefix(prefix)
+        if (key !in ThemePackageIO.BOTTOM_BAR_ICON_SLOTS) return source
+
+        val next = JSONObject(source.toString())
+        val existing = next.optJSONArray("bottomBarIcons")
+        val arr = JSONArray()
+        if (existing != null) {
+            for (i in 0 until existing.length()) {
+                val value = existing.opt(i)
+                if (!add && value == key) continue
+                arr.put(value)
+            }
+        }
+        if (add && !(0 until arr.length()).any { arr.optString(it) == key }) arr.put(key)
+        if (arr.length() == 0) next.remove("bottomBarIcons") else next.put("bottomBarIcons", arr)
+        return next
     }
 
     fun prettyJson(): String = ThemePackageIO.pretty(document?.json)

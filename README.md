@@ -8,10 +8,10 @@
 ## 功能
 
 - **导入 / 导出 `.sukisu`**：通过系统文件选择器（SAF），也支持从文件管理器直接「打开方式」。
-- **完整 `theme.json` 编辑**：按分组覆盖 `ThemePackageData` 的全部字段，未知字段原样保留（与管理器 `ignoreUnknownKeys` 行为一致）。
-- **高级 JSON 区块**：`appearance` 叠加层、`light` / `dark` 自适应变体、`customTexts`、`homeCardStickerTransforms` 以原始 JSON 编辑，保证新版本字段不被丢弃。
-- **图片管理**：背景、卡片背景、贴纸，以及自适应主题的亮/暗两套图片槽；支持自定义条目名。
-- **格式 v1–v4**：版本切换、自适应与叠加层的版本约束校验、限额校验（128 MB 整包 / 64 KB JSON / 64 MB 单图 / 256 MB 图片总量）、重复条目与非法条目名检查。
+- **完整 `theme.json` 编辑**：按分组覆盖 `ThemePackageData` 的全部字段（含 v5 沉浸首页 8 个新字段），未知字段原样保留（与管理器 `ignoreUnknownKeys` 行为一致）。
+- **高级 JSON 区块**：`appearance` 叠加层、`light` / `dark` 自适应变体、`bottomBarIcons`、`customTexts`、`homeCardStickerTransforms` 以原始 JSON 编辑，保证新版本字段不被丢弃。
+- **图片管理**：背景、卡片背景、贴纸、自适应亮/暗两套图片槽，以及 v5 的 4 个自定义底栏图标槽；支持自定义条目名。
+- **格式 v1–v5**：版本切换、自适应 / 叠加层 / 沉浸首页 / 底栏图标的版本约束校验、限额校验（128 MB 整包 / 64 KB JSON / 64 MB 单图 / 256 MB 图片总量）、重复条目与非法条目名检查；版本不匹配时提供一键升级到 v5。
 - **包内容查看**：列出 ZIP 条目、大小、压缩方式，可复制格式化后的 `theme.json`。
 
 ## .sukisu 格式
@@ -30,11 +30,34 @@ offset 16  : AES-256-GCM(plaintext ZIP)   (末尾 16 B 为 GCM tag)
   条目为 DEFLATED / level 0（`setLevel(Deflater.NO_COMPRESSION)`，未调用 `setMethod(STORED)`）。
 - 条目名：普通主题用 `background`、`card_background`、`card_sticker_0…`；
   自适应主题（v3+）用 `background_light` / `background_dark`、
-  `card_background_light` / `card_background_dark`、`card_sticker_light_0…` / `card_sticker_dark_0…`。
-- `theme.json` 版本：`v2` 基础、`v3` 自适应（`light` + `dark`）、`v4` 增加 `appearance` 叠加层。
-  旧版管理器会拒绝过高版本，不会「只应用一半主题」。
+  `card_background_light` / `card_background_dark`、`card_sticker_light_0…` / `card_sticker_dark_0…`；
+  v5 新增 `bottom_bar_icon_<slot>`，合法 slot 仅 `home` / `superuser` / `module` / `setting`，
+  普通与自适应主题共用同一组图标。
+- `theme.json` 版本：`v2` 基础、`v3` 自适应（`light` + `dark`）、`v4` 增加 `appearance` 叠加层、
+  `v5` 增加沉浸首页与自定义底栏图标。旧版管理器会拒绝过高版本，不会「只应用一半主题」。
 
-格式实现参考 SukiSU-Ultra 管理器源码，本仓库为独立第三方工具，与 SukiSU-Ultra 项目无隶属关系。
+### v5 新增内容
+
+新增字段（`ThemePackageData` 与 `light` / `dark` variant 均有）：
+
+| 字段 | 取值 / 范围 |
+|---|---|
+| `homeLayout` | `classic` / `immersive` |
+| `homeStatusAlignment` | `start` / `end` |
+| `homeStatusScale` | Float 0.5–3 |
+| `homePillScale` | Float 0.5–1.5 |
+| `homeStatusWidthFraction` | Float 0.45–1 |
+| `homeCardImageStyle` | `banner` / `off`（旧值 `window` 回退 `banner`） |
+| `showHomeCardImageWithoutBackground` | Boolean |
+| `enableProgressiveBlur` | Boolean |
+
+顶层另有 `bottomBarIcons: List<String>`，需与 `bottom_bar_icon_<slot>` 图片条目对应。
+
+校验规则：`immersive`（顶层或任一 variant）与自定义底栏图标都要求 `version >= 5`；
+`bottomBarIcons` 列出的合法 slot 缺图片会报错；管理器导出时只要用了这两类特性就自动把版本提到 5，
+自适应导出会把顶层首页字段清空、改由 variant 携带。
+
+格式实现参考 SukiSU-Ultra 管理器 `main` 分支源码（对应提交 `fae5788d`），本仓库为独立第三方工具，与 SukiSU-Ultra 项目无隶属关系。
 
 ## UI
 

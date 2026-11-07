@@ -94,8 +94,13 @@ fun InspectScreen(vm: ThemeEditorViewModel) {
         item {
             ExpandableGroup("格式说明", "与 SukiSU-Ultra 管理器保持一致") {
                 Text(
-                    "· v1–v4：v3 起支持 light/dark 自适应变体，v4 起支持 appearance 叠加层。\n" +
-                        "· 旧版管理器会拒绝过高版本，不会只应用一半主题。\n" +
+                    "· v1–v5：v3 light/dark 自适应，v4 appearance 叠加层，v5 沉浸首页与自定义底栏图标。\n" +
+                        "· v5 新增字段：homeLayout、homeStatusAlignment、homeStatusScale、homePillScale、" +
+                        "homeStatusWidthFraction、homeCardImageStyle、showHomeCardImageWithoutBackground、" +
+                        "enableProgressiveBlur。\n" +
+                        "· v5 新条目 bottom_bar_icon_<slot>，合法 slot：home / superuser / module / setting，" +
+                        "普通与自适应主题共用；bottomBarIcons 数组需与图片条目对应。\n" +
+                        "· immersive 布局或有底栏图标时必须 v5；旧版管理器会拒绝过高版本，不会只应用一半主题。\n" +
                         "· 整包 ≤128 MB，theme.json ≤64 KB，单图 ≤64 MB，图片总量 ≤256 MB。\n" +
                         "· 密钥硬编码在管理器 APK 中，属于混淆/完整性保护而非版权保护。",
                     style = MaterialTheme.typography.bodySmall,
